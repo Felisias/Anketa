@@ -8,10 +8,14 @@ logging.basicConfig(level=logging.INFO)
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
 
+if not TOKEN or not WEBHOOK_URL:
+    raise RuntimeError("Please set TELEGRAM_TOKEN and WEBHOOK_URL env variables")
+
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
 webhook_url = f"{WEBHOOK_URL.rstrip('/')}/{TOKEN}"
+logging.info(f"Установка webhook на {webhook_url}")
 bot.remove_webhook()
 bot.set_webhook(url=webhook_url)
 
@@ -22,10 +26,16 @@ def webhook():
     bot.process_new_updates([update])
     return "OK", 200
 
+@app.route("/")
+def home():
+    return "Bot is running", 200
+
 @bot.message_handler(commands=['start'])
 def start(message):
     logging.info(f"Получена команда /start от {message.from_user.id}")
     bot.reply_to(message, "Привет! Бот работает.")
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
+    port = int(os.environ.get("PORT", 5000))
+    logging.info(f"Запуск сервера на порту {port}")
+    app.run(host='0.0.0.0', port=port)
