@@ -17,13 +17,6 @@ if not WEBHOOK_URL:
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
-# Устанавливаем webhook сразу при импорте (важно для gunicorn)
-webhook_url = f"{WEBHOOK_URL.rstrip('/')}/{TOKEN}"
-logging.info(f"Установка webhook на {webhook_url}")
-bot.remove_webhook()
-set_result = bot.set_webhook(url=webhook_url)
-logging.info(f"Результат установки webhook: {set_result}")
-
 @app.route("/")
 def home():
     return "Bot is running", 200
@@ -31,27 +24,15 @@ def home():
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
     json_str = request.get_data().decode("utf-8")
-    logging.info(f"Получен POST запрос с телом: {json_str}")
     update = telebot.types.Update.de_json(json_str)
     bot.process_new_updates([update])
-    logging.info("Обновление обработано")
     return "OK", 200
-
-@bot.message_handler(commands=['start'])
-def start(message):
-    logging.info(f"Получена команда /start от {message.from_user.id}")
-    try:
-        bot.reply_to(message, "Привет! Я работаю.")
-        logging.info("Ответ на /start отправлен")
-    except Exception as e:
-        logging.error(f"Ошибка при ответе на /start: {e}")
 
 @bot.message_handler(func=lambda m: True)
 def echo_all(message):
     logging.info(f"Получено сообщение: {message.text} от {message.from_user.id}")
     try:
         bot.reply_to(message, message.text)
-        logging.info("Ответ отправлен")
     except Exception as e:
         logging.error(f"Ошибка при ответе: {e}")
 
@@ -61,6 +42,12 @@ def webhook_info():
     return jsonify(resp.json())
 
 if __name__ == "__main__":
+    webhook_url = f"{WEBHOOK_URL.rstrip('/')}/{TOKEN}"
+    logging.info(f"Установка webhook на {webhook_url}")
+    bot.remove_webhook()
+    set_result = bot.set_webhook(url=webhook_url)
+    logging.info(f"Результат установки webhook: {set_result}")
+
     port = int(os.environ.get("PORT", 5000))
     logging.info(f"Запуск сервера на порту {port}")
     app.run(host="0.0.0.0", port=port)
