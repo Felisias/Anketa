@@ -4,7 +4,6 @@ from flask import Flask, request, jsonify
 import telebot
 import requests
 
-# Логируем в консоль с уровнем INFO
 logging.basicConfig(level=logging.INFO)
 
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
@@ -18,7 +17,7 @@ if not WEBHOOK_URL:
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
-# Устанавливаем webhook сразу при старте приложения
+# Установка webhook при старте
 webhook_url = f"{WEBHOOK_URL.rstrip('/')}/{TOKEN}"
 logging.info(f"Установка webhook на {webhook_url}")
 bot.remove_webhook()
@@ -32,10 +31,9 @@ def home():
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
     json_str = request.get_data().decode("utf-8")
-    logging.info(f"Получен POST запрос с телом: {json_str[:500]}")  # Лимит на 500 символов для удобства
+    logging.info(f"Получен POST запрос с телом: {json_str[:500]}")
     try:
         update = telebot.types.Update.de_json(json_str)
-        logging.info(f"Update object получен: {update}")
         bot.process_new_updates([update])
         logging.info("Обновление обработано")
     except Exception as e:
@@ -46,8 +44,8 @@ def webhook():
 def echo_all(message):
     logging.info(f"Получено сообщение от {message.from_user.id}: {message.text}")
     try:
-        bot.reply_to(message, message.text)
-        logging.info("Ответ отправлен")
+        response = bot.reply_to(message, message.text)
+        logging.info(f"Ответ отправлен, message_id: {response.message_id}")
     except Exception as e:
         logging.error(f"Ошибка при ответе: {e}")
 
