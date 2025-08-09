@@ -31,13 +31,17 @@ def home():
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
     json_str = request.get_data().decode("utf-8")
-    update = telebot.types.Update.de_json(json_str)
-    bot.process_new_updates([update])
+    logging.info(f"Получен POST запрос с телом: {json_str[:200]}")  # Лог первых 200 символов
+    try:
+        update = telebot.types.Update.de_json(json_str)
+        bot.process_new_updates([update])
+    except Exception as e:
+        logging.error(f"Ошибка при обработке update: {e}")
     return "OK", 200
 
 @bot.message_handler(func=lambda m: True)
 def echo_all(message):
-    logging.info(f"Получено сообщение: {message.text} от {message.from_user.id}")
+    logging.info(f"Получено сообщение от {message.from_user.id}: {message.text}")
     try:
         bot.reply_to(message, message.text)
         logging.info("Ответ отправлен")
