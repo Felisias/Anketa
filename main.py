@@ -1,13 +1,18 @@
 import os
-from flask import Flask, request
-import telebot
 import logging
+from flask import Flask, request, jsonify
+import telebot
+import requests
 
 logging.basicConfig(level=logging.INFO)
 
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
 if not TOKEN:
     raise RuntimeError("Please set TELEGRAM_TOKEN environment variable")
+
+WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
+if not WEBHOOK_URL:
+    raise RuntimeError("Please set WEBHOOK_URL environment variable")
 
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
@@ -31,16 +36,18 @@ def echo_all(message):
     except Exception as e:
         logging.error(f"Ошибка при ответе: {e}")
 
-WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
-if WEBHOOK_URL:
-    webhook_url = f"{WEBHOOK_URL.rstrip('/')}/{TOKEN}"
-    bot.remove_webhook()
-    result = bot.set_webhook(url=webhook_url)
-    logging.info(f"Установка webhook на {webhook_url}: {result}")
-else:
-    logging.warning("WEBHOOK_URL не задан")
+@app.route("/webhook_info")
+def webhook_info():
+    resp = requests.get(f"https://api.telegram.org/bot{TOKEN}/getWebhookInfo")
+    return jsonify(resp.json())
 
 if __name__ == "__main__":
+    webhook_url = f"{WEBHOOK_URL.rstrip('/')}/{TOKEN}"
+    logging.info(f"Установка webhook на {webhook_url}")
+    bot.remove_webhook()
+    set_result = bot.set_webhook(url=webhook_url)
+    logging.info(f"Результат установки webhook: {set_result}")
+
     port = int(os.environ.get("PORT", 5000))
     logging.info(f"Запуск сервера на порту {port}")
     app.run(host="0.0.0.0", port=port)
