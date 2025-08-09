@@ -1,53 +1,38 @@
 import os
-import logging
-from flask import Flask, request, jsonify
+from flask import Flask, request, abort
 import telebot
-import requests
-
-logging.basicConfig(level=logging.INFO)
 
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
 if not TOKEN:
-    raise RuntimeError("Please set TELEGRAM_TOKEN environment variable")
-
-WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
-if not WEBHOOK_URL:
-    raise RuntimeError("Please set WEBHOOK_URL environment variable")
+    raise RuntimeError("Please set the TELEGRAM_TOKEN environment variable")
 
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
 @app.route("/")
-def home():
-    return "Bot is running", 200
+def index():
+    return "OK", 200
 
+# Telegram will POST updates to https://<your-domain>/<TOKEN>
 @app.route(f"/{TOKEN}", methods=["POST"])
-def webhook():
-    json_str = request.get_data().decode("utf-8")
-    update = telebot.types.Update.de_json(json_str)
+def telegram_webhook():
+    json_string = request.get_data().decode('utf-8')
+    update = telebot.types.Update.de_json(json_string)
     bot.process_new_updates([update])
     return "OK", 200
 
+# Simple echo handler
 @bot.message_handler(func=lambda m: True)
 def echo_all(message):
-    logging.info(f"Получено сообщение: {message.text} от {message.from_user.id}")
-    try:
-        bot.reply_to(message, message.text)
-    except Exception as e:
-        logging.error(f"Ошибка при ответе: {e}")
+    bot.reply_to(message, message.text)
 
-@app.route("/webhook_info")
-def webhook_info():
-    resp = requests.get(f"https://api.telegram.org/bot{TOKEN}/getWebhookInfo")
-    return jsonify(resp.json())
+# Optional: if you set WEBHOOK_URL env var, set webhook automatically on start
+WEBHOOK_URL = os.environ.get("WEBHOOK_URL")  # e.g. "https://my-app.up.railway.app"
+if WEBHOOK_URL:
+    webhook = f"{WEBHOOK_URL.rstrip('/')}/{TOKEN}"
+    bot.remove_webhook()
+    bot.set_webhook(url=webhook)
 
 if __name__ == "__main__":
-    webhook_url = f"{WEBHOOK_URL.rstrip('/')}/{TOKEN}"
-    logging.info(f"Установка webhook на {webhook_url}")
-    bot.remove_webhook()
-    set_result = bot.set_webhook(url=webhook_url)
-    logging.info(f"Результат установки webhook: {set_result}")
-
     port = int(os.environ.get("PORT", 5000))
-    logging.info(f"Запуск сервера на порту {port}")
     app.run(host="0.0.0.0", port=port)
